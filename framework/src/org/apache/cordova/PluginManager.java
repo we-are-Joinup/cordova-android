@@ -19,7 +19,9 @@
 package org.apache.cordova;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.json.JSONException;
 
@@ -28,6 +30,7 @@ import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Debug;
+import android.os.Build;
 
 /**
  * PluginManager is exposed to JavaScript in the Cordova WebView.
@@ -40,8 +43,8 @@ public class PluginManager {
     private static final int SLOW_EXEC_WARNING_THRESHOLD = Debug.isDebuggerConnected() ? 60 : 16;
 
     // List of service entries
-    private final LinkedHashMap<String, CordovaPlugin> pluginMap = new LinkedHashMap<String, CordovaPlugin>();
-    private final LinkedHashMap<String, PluginEntry> entryMap = new LinkedHashMap<String, PluginEntry>();
+    private final Map<String, CordovaPlugin> pluginMap = Collections.synchronizedMap(new LinkedHashMap<>());
+    private final Map<String, PluginEntry> entryMap = Collections.synchronizedMap(new LinkedHashMap<>());
 
     private final CordovaInterface ctx;
     private final CordovaWebView app;
@@ -307,11 +310,19 @@ public class PluginManager {
      * @return                  Object to stop propagation or null
      */
     public Object postMessage(String id, Object data) {
-        for (CordovaPlugin plugin : this.pluginMap.values()) {
-            if (plugin != null) {
-                Object obj = plugin.onMessage(id, data);
-                if (obj != null) {
-                    return obj;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            this.pluginMap.forEach((s, plugin) -> {
+                if (plugin != null) {
+                    plugin.onMessage(id, data);
+                }
+            });
+        } else {
+            for (CordovaPlugin plugin : this.pluginMap.values()) {
+                if (plugin != null) {
+                    Object obj = plugin.onMessage(id, data);
+                        if (obj != null) {
+                            return obj;
+                        }
                 }
             }
         }
